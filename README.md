@@ -17,6 +17,7 @@ TestRTC.init(options, callback);
  * ``options.apiKey`` {String} - The API key for your project. [How to generate API key](https://testrtc.freshdesk.com/support/solutions/articles/9000064726-view-our-api-documentation)
  * ``options.debug`` {Boolean} - The option for logging each state of SDK process to console.
  * ``options.inject`` {Boolean} - If true, SDK will start process of collecting data immediately after initializing. Setting value to false - can be used for uploading data manually.
+ * ``callback``  {Function} - The callback which receives error as first argument.
 
 ## Upload data to TestRTC server
 Upload collected data to TestRTC server for analyzing.
