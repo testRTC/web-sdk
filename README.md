@@ -6,7 +6,7 @@ This repository contains the TestRTC Web SDK itself and examples of usage.
 To use the TestRTC Web SDK in the browser, simply add the following script tag to your
 HTML pages:
 ```
-<script src="url_will_be_added_soon"></script>
+<script src="https://resources.testrtc.com/sdk/testRTC-sdk.js"></script>
 ```
 
 ## Using
