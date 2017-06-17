@@ -32,6 +32,18 @@
     // Transport instance
     TestRTC.transportInstance = null;
 
+    var RTCPeerConnectionNames = [],
+    prefixes = ['', 'webkit'],
+    defaultConstructorProperties = Object.getOwnPropertyNames(new Function());
+
+    prefixes.forEach(function(prefix) {
+      if (!window[prefix + 'RTCPeerConnection']) {
+        return;
+      }
+
+      RTCPeerConnectionNames.push(prefix + 'RTCPeerConnection');
+    });
+
     // Transport implementation
     var Transport = {
         'https': function() {
@@ -101,7 +113,8 @@
             nextChannelId: 0,
             knownChannels: {},
             stats: {},
-            extra: {}
+            extra: {},
+            prefixIndex: 0
         };
 
         function onIceConnectionStateChange() {
@@ -148,27 +161,80 @@
             }
         }
 
-        var originalRTCPeerConnection = window["webkitRTCPeerConnection"],
-            originalRTCPeerConnectionName = "webkitRTCPeerConnection";
+        RTCPeerConnectionNames.forEach(function(originalRTCPeerConnectionName, idx) {
+          var originalRTCPeerConnection = window[originalRTCPeerConnectionName],
+              originalRTCPeerConnectionClose = originalRTCPeerConnection.prototype.close;
 
-        var originalRTCPeerConnectionClose = originalRTCPeerConnection.prototype.close;
-        originalRTCPeerConnection.prototype.close = function() {
+          originalRTCPeerConnection.prototype.close = function() {
             delete window.___testRTCTestAgent.knownChannels[this.___testRTCChannelId];
             return originalRTCPeerConnectionClose.apply(this, arguments);
-        };
+          };
 
-        window[originalRTCPeerConnectionName] = function(pcConfig, pcConstraints) {
+          window[originalRTCPeerConnectionName] = function(pcConfig, pcConstraints) {
+            ___testRTCTestAgent.prefixIndex = idx;
+
             var conn = new originalRTCPeerConnection(pcConfig, pcConstraints);
             conn.___testRTCChannelId = window.___testRTCTestAgent.nextChannelId;
-            window.___testRTCTestAgent.knownChannels[conn.___testRTCChannelId] = conn;
+            window.___testRTCTestAgent.knownChannels[conn.___testRTCChannelId] = conn; 
             window.___testRTCTestAgent.nextChannelId++;
             window.___testRTCTestAgent.extra[conn.___testRTCChannelId] = {};
             conn.addEventListener('iceconnectionstatechange', onIceConnectionStateChange.bind(conn));
             conn.addEventListener('iceconnectionstatechange', getSDP.bind(conn));
             return conn;
-        };
+          };
 
-        window[originalRTCPeerConnectionName].prototype = originalRTCPeerConnection.prototype;
+          window[originalRTCPeerConnectionName].prototype = originalRTCPeerConnection.prototype;
+
+          // Copy any other properties (like generateCertificate)
+
+          Object.getOwnPropertyNames(originalRTCPeerConnection).forEach(function(property) {
+            if (defaultConstructorProperties.indexOf(property) !== -1) {
+              return;
+            }
+
+            window[originalRTCPeerConnectionName][property] = originalRTCPeerConnection[property];
+          });
+        });
+
+        if (window.navigator.mediaDevices && window.navigator.mediaDevices.enumerateDevices) {
+          var originalEnumerateDevices = window.navigator.mediaDevices.enumerateDevices;
+
+          // Override a enumerateDevices
+          window.navigator.mediaDevices.enumerateDevices = function() {
+            return new Promise(function(resolve, reject) {
+              originalEnumerateDevices.call(window.navigator.mediaDevices).then(function(devices) {
+                var newDevices = [],
+                    hasVideo = false, hasAudio = false;
+
+                devices.forEach(function(device) {
+                  if (device.kind === 'videoinput' && !hasVideo) {
+                    var newDevice = {};
+
+                    newDevice.deviceId = device.deviceId;
+                    newDevice.groupId = device.groupId;
+                    newDevice.kind = device.kind;              
+                    newDevice.label = 'HD Camera (Built-in)';
+                    newDevices.push(newDevice);
+                    hasVideo = true;
+                  }
+
+                  if (device.kind === 'audioinput' && !hasAudio && (device.deviceId === 'default' || device.label.indexOf('Default') !== -1)) {
+                    var newDevice = {};
+
+                    newDevice.deviceId = device.deviceId;
+                    newDevice.groupId = device.groupId;
+                    newDevice.kind = device.kind;
+                    newDevice.label = 'default (Built-in Microphone)';
+                    newDevices.push(newDevice);
+                    hasAudio = true;
+                  }
+                });
+
+                resolve(devices);
+              }, reject);
+            });
+          };
+        }
 
         injectGetStatInterval();
 
