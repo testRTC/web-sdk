@@ -14,7 +14,7 @@ This can be useful in situations where:
 To use the testRTC Web SDK in the browser, add the following script tag to your
 HTML pages, preferably at the head of the page:
 ```
-<script src="https://resources.testrtc.com/sdk/testRTC-sdk.js"></script>
+<script src="https://sdk.testrtc.com/testRTC-sdk.js"></script>
 ```
 
 Now you will need to initiailze the SDK itself to connect it with the testRTC server.
